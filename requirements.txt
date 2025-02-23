@@ -1,0 +1,5 @@
+streamlit==1.22.0
+pandas==1.5.3
+plotly==5.13.1
+python-dotenv==0.19.0
+streamlit-javascript==0.1.5
