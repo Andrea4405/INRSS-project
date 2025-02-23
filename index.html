@@ -26,87 +26,113 @@
         button:hover {
             background-color: #218838;
         }
+        .dashboard, .inventory, .reminders {
+            margin: 20px;
+            text-align: left;
+        }
+        .stats {
+            display: flex;
+            gap: 20px;
+        }
+        .stat-card {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 150px;
+            text-align: center;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-actions {
+            display: flex;
+            gap: 10px;
+        }
     </style>
 </head>
 <body>
     <h1>Welcome to the Inventory Reminder System</h1>
 
-    <!-- Existing content of your page -->
-
-    <!-- New button added -->
+    <!-- Test Email Button -->
     <button onclick="sendEmailAlert()">Send Test Email</button>
 
-</body>
-</html>
-
-
-        <main>
-            <section class="dashboard">
-                <h2>Dashboard</h2>
-                <div class="stats">
-                    <div class="stat-card">
-                        <h3>Total Products</h3>
-                        <p id="totalProducts">0</p>
-                    </div>
-                    <div class="stat-card">
-                        <h3>Low Stock</h3>
-                        <p id="lowStock">0</p>
-                    </div>
-                    <div class="stat-card">
-                        <h3>Expiring Soon</h3>
-                        <p id="expiringSoon">0</p>
-                    </div>
+    <main>
+        <section class="dashboard">
+            <h2>Dashboard</h2>
+            <div class="stats">
+                <div class="stat-card">
+                    <h3>Total Products</h3>
+                    <p id="totalProducts">0</p>
                 </div>
-            </section>
-
-            <section class="inventory">
-                <div class="inventory-header">
-                    <h2>Inventory</h2>
-                    <button id="addProductBtn" class="btn-primary">Add Product</button>
+                <div class="stat-card">
+                    <h3>Low Stock</h3>
+                    <p id="lowStock">0</p>
                 </div>
-                <div class="inventory-list" id="inventoryList"></div>
-            </section>
-
-            <section class="reminders">
-                <h2>Upcoming Reminders</h2>
-                <div class="reminder-list" id="reminderList"></div>
-            </section>
-        </main>
-
-        <!-- Add Product Modal -->
-        <div id="addProductModal" class="modal">
-            <div class="modal-content">
-                <h2>Add New Product</h2>
-                <form id="addProductForm">
-                    <div class="form-group">
-                        <label for="productName">Product Name</label>
-                        <input type="text" id="productName" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="quantity">Quantity</label>
-                        <input type="number" id="quantity" required min="1">
-                    </div>
-                    <div class="form-group">
-                        <label for="expirationDate">Expiration Date</label>
-                        <input type="date" id="expirationDate" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="reminderFrequency">Reminder Frequency (days)</label>
-                        <input type="number" id="reminderFrequency" required min="1">
-                    </div>
-                    <div class="form-group">
-                        <label for="minimumStock">Minimum Stock Alert</label>
-                        <input type="number" id="minimumStock" required min="1">
-                    </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn-primary">Save</button>
-                        <button type="button" class="btn-secondary" id="cancelAdd">Cancel</button>
-                    </div>
-                </form>
+                <div class="stat-card">
+                    <h3>Expiring Soon</h3>
+                    <p id="expiringSoon">0</p>
+                </div>
             </div>
+        </section>
+
+        <section class="inventory">
+            <div class="inventory-header">
+                <h2>Inventory</h2>
+                <button id="addProductBtn" class="btn-primary">Add Product</button>
+            </div>
+            <div class="inventory-list" id="inventoryList"></div>
+        </section>
+
+        <section class="reminders">
+            <h2>Upcoming Reminders</h2>
+            <div class="reminder-list" id="reminderList"></div>
+        </section>
+    </main>
+
+    <!-- Add Product Modal -->
+    <div id="addProductModal" class="modal">
+        <div class="modal-content">
+            <h2>Add New Product</h2>
+            <form id="addProductForm">
+                <div class="form-group">
+                    <label for="productName">Product Name</label>
+                    <input type="text" id="productName" required>
+                </div>
+                <div class="form-group">
+                    <label for="quantity">Quantity</label>
+                    <input type="number" id="quantity" required min="1">
+                </div>
+                <div class="form-group">
+                    <label for="expirationDate">Expiration Date</label>
+                    <input type="date" id="expirationDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="reminderFrequency">Reminder Frequency (days)</label>
+                    <input type="number" id="reminderFrequency" required min="1">
+                </div>
+                <div class="form-group">
+                    <label for="minimumStock">Minimum Stock Alert</label>
+                    <input type="number" id="minimumStock" required min="1">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Save</button>
+                    <button type="button" class="btn-secondary" id="cancelAdd">Cancel</button>
+                </div>
+            </form>
         </div>
     </div>
+
     <script src="app.js"></script>
 </body>
 </html>
-
