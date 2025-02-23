@@ -1,210 +1,145 @@
-from flask import Flask, request, jsonify # type: ignore
-from flask_cors import CORS # type: ignore
-from flask_sqlalchemy import SQLAlchemy # type: ignore
+import streamlit as st
+import pandas as pd
+import sqlite3
 from datetime import datetime, timedelta
-import schedule # type: ignore
-import time
-import threading
+import plotly.express as px
+import plotly.graph_objects as go
+from streamlit_javascript import st_javascript
+import streamlit.components.v1 as components
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import os
+from dotenv import load_dotenv
 
-app = Flask(__name__)
-CORS(app)
+# Load environment variables
+load_dotenv()
 
-# Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///inventory.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
+# Database initialization
+def init_db():
+    conn = sqlite3.connect('inventory.db')
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS products
+        (id INTEGER PRIMARY KEY AUTOINCREMENT,
+         name TEXT NOT NULL,
+         quantity INTEGER NOT NULL,
+         expiration_date DATE NOT NULL,
+         reminder_frequency INTEGER NOT NULL,
+         minimum_stock INTEGER NOT NULL,
+         image_url TEXT,
+         last_reminder DATE)
+    ''')
+    conn.commit()
+    conn.close()
+
+# Initialize the database
+init_db()
 
 # Email configuration
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
-SMTP_USERNAME = "your-email@gmail.com"
-SMTP_PASSWORD = "your-app-password"
+SMTP_USERNAME = os.getenv('SMTP_USERNAME')
+SMTP_PASSWORD = os.getenv('SMTP_PASSWORD')
 
-# Models
-class Product(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    quantity = db.Column(db.Integer, nullable=False)
-    expiration_date = db.Column(db.Date, nullable=False)
-    reminder_frequency = db.Column(db.Integer, nullable=False)
-    minimum_stock = db.Column(db.Integer, nullable=False)
-    last_reminder = db.Column(db.Date, nullable=True)
+# Custom CSS
+def load_css():
+    st.markdown("""
+        <style>
+        .main { padding: 2rem; }
+        .stButton>button { width: 100%; background-color: #4CAF50; color: white; padding: 0.5rem; border: none; border-radius: 4px; }
+        .product-card { border: 1px solid #ddd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; background-color: white; }
+        .metric-card { background-color: #f8f9fa; padding: 1rem; border-radius: 8px; text-align: center; }
+        .reminder-card { background-color: #fff3cd; padding: 1rem; border-radius: 8px; margin-bottom: 0.5rem; }
+        </style>
+    """, unsafe_allow_html=True)
 
-class Reminder(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
-    message = db.Column(db.String(200), nullable=False)
-    due_date = db.Column(db.Date, nullable=False)
-    sent = db.Column(db.Boolean, default=False)
+# Database operations
+def add_product(name, quantity, expiration_date, reminder_frequency, minimum_stock, image_path):
+    conn = sqlite3.connect('inventory.db')
+    c = conn.cursor()
+    c.execute('''
+        INSERT INTO products (name, quantity, expiration_date, reminder_frequency, minimum_stock, image_url)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (name, quantity, expiration_date, reminder_frequency, minimum_stock, image_path))
+    conn.commit()
+    conn.close()
 
-# Create tables
-with app.app_context():
-    db.create_all()
 
-# Routes
-@app.route('/api/products', methods=['GET'])
 def get_products():
-    products = Product.query.all()
-    return jsonify([{
-        'id': p.id,
-        'name': p.name,
-        'quantity': p.quantity,
-        'expiration_date': p.expiration_date.isoformat(),
-        'reminder_frequency': p.reminder_frequency,
-        'minimum_stock': p.minimum_stock
-    } for p in Product.query.all()])
+    conn = sqlite3.connect('inventory.db')
+    df = pd.read_sql_query('SELECT * FROM products', conn)
+    conn.close()
+    return df
 
-@app.route('/api/products', methods=['POST'])
-def add_product():
-    data = request.json
-    product = Product(
-        name=data['name'],
-        quantity=data['quantity'],
-        expiration_date=datetime.strptime(data['expiration_date'], '%Y-%m-%d').date(),
-        reminder_frequency=data['reminder_frequency'],
-        minimum_stock=data['minimum_stock']
-    )
-    db.session.add(product)
-    db.session.commit()
-    return jsonify({'message': 'Product added successfully'})
-
-@app.route('/api/products/<int:product_id>/quantity', methods=['PATCH'])
-def update_quantity(product_id):
-    product = Product.query.get_or_404(product_id)
-    data = request.json
-    product.quantity += data['change']
-    if product.quantity < 0:
-        product.quantity = 0
-    db.session.commit()
-    return jsonify({'message': 'Quantity updated successfully'})
-
-@app.route('/api/products/<int:product_id>', methods=['DELETE'])
-def delete_product(product_id):
-    product = Product.query.get_or_404(product_id)
-    db.session.delete(product)
-    db.session.commit()
-    return jsonify({'message': 'Product deleted successfully'})
-
-@app.route('/api/reminders', methods=['GET'])
-def get_reminders():
-    reminders = Reminder.query.filter_by(sent=False).all()
-    return jsonify([{
-        'id': r.id,
-        'product_name': Product.query.get(r.product_id).name,
-        'message': r.message,
-        'due_date': r.due_date.isoformat()
-    } for r in reminders])
-
-@app.route('/api/dashboard', methods=['GET'])
-def get_dashboard():
-    total_products = Product.query.count()
-    low_stock = Product.query.filter(Product.quantity <= Product.minimum_stock).count()
-    expiring_soon = Product.query.filter(
-        Product.expiration_date <= (datetime.now() + timedelta(days=30)).date()
-    ).count()
+# Main application
+def main():
+    st.set_page_config(page_title="Health Product Inventory", layout="wide")
+    load_css()
+    st.title("Health Product Inventory")
     
-    return jsonify({
-        'total_products': total_products,
-        'low_stock': low_stock,
-        'expiring_soon': expiring_soon
-    })
-
-def send_email(subject, body, to_email):
-    msg = MIMEMultipart()
-    msg['From'] = SMTP_USERNAME
-    msg['To'] = to_email
-    msg['Subject'] = subject
+    # Dashboard metrics
+    df = get_products()
+    total_products = df.shape[0]
+    low_stock = df[df['quantity'] <= df['minimum_stock']].shape[0]
+    expiring_soon = df[pd.to_datetime(df['expiration_date']) <= (datetime.now() + timedelta(days=30))].shape[0]
     
-    msg.attach(MIMEText(body, 'plain'))
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(f"<div class='metric-card'><h3>Total Products</h3><h2>{total_products}</h2></div>", unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"<div class='metric-card'><h3>Low Stock</h3><h2>{low_stock}</h2></div>", unsafe_allow_html=True)
+    with col3:
+        st.markdown(f"<div class='metric-card'><h3>Expiring Soon</h3><h2>{expiring_soon}</h2></div>", unsafe_allow_html=True)
     
-    try:
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.starttls()
-        server.login(SMTP_USERNAME, SMTP_PASSWORD)
-        server.send_message(msg)
-        server.quit()
-        return True
-    except Exception as e:
-        print(f"Failed to send email: {e}")
-        return False
-
-def check_reminders():
-    with app.app_context():
-        today = datetime.now().date()
+    # Add new product
+    with st.form("add_product_form"):
+        name = st.text_input("Product Name")
+        quantity = st.number_input("Quantity", min_value=0)
+        expiration_date = st.date_input("Expiration Date")
+        reminder_frequency = st.number_input("Reminder Frequency (days)", min_value=1)
+        minimum_stock = st.number_input("Minimum Stock Level", min_value=0)
+        uploaded_file = st.file_uploader("Upload Product Image", type=["jpg", "png", "jpeg"])
         
-        # Check for low stock
-        low_stock_products = Product.query.filter(Product.quantity <= Product.minimum_stock).all()
-        for product in low_stock_products:
-            message = f"Low stock alert: {product.name} (Quantity: {product.quantity})"
-            reminder = Reminder(
-                product_id=product.id,
-                message=message,
-                due_date=today
-            )
-            db.session.add(reminder)
-            send_email(
-                "Low Stock Alert",
-                message,
-                SMTP_USERNAME
-            )
+        image_path = None
+        if uploaded_file is not None:
+            image_path = os.path.join("images", uploaded_file.name)
+            with open(image_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
         
-        # Check for expiring products
-        expiring_products = Product.query.filter(
-            Product.expiration_date <= (today + timedelta(days=30))
-        ).all()
-        for product in expiring_products:
-            message = f"Expiration alert: {product.name} expires on {product.expiration_date}"
-            reminder = Reminder(
-                product_id=product.id,
-                message=message,
-                due_date=today
-            )
-            db.session.add(reminder)
-            send_email(
-                "Expiration Alert",
-                message,
-                SMTP_USERNAME
-            )
-        
-        # Check consumption reminders
-        products = Product.query.all()
-        for product in products:
-            if not product.last_reminder or \
-               (today - product.last_reminder).days >= product.reminder_frequency:
-                message = f"Consumption reminder: Time to take {product.name}"
-                reminder = Reminder(
-                    product_id=product.id,
-                    message=message,
-                    due_date=today
-                )
-                db.session.add(reminder)
-                product.last_reminder = today
-                send_email(
-                    "Consumption Reminder",
-                    message,
-                    SMTP_USERNAME
-                )
-        
-        db.session.commit()
-
-def run_scheduler():
-    schedule.every().day.at("09:00").do(check_reminders)
-    while True:
-        schedule.run_pending()
-        time.sleep(60)
-
-from flask import Flask, jsonify
-from flask_cors import CORS  # type: ignore # Import CORS to avoid cross-origin issues
-
-app = Flask(__name__)
-CORS(app)  # Enable CORS for frontend requests
-
-@app.route("/test-api", methods=["GET"])  # New API route
-def test_api():
-    return jsonify({"message": "Hello from Flask!"})  # Returns JSON response
+        if st.form_submit_button("Add Product"):
+            add_product(name, quantity, expiration_date, reminder_frequency, minimum_stock, image_path)
+            st.success("Product added successfully!")
+            st.rerun()
+    
+    # Display inventory
+    st.subheader("Current Inventory")
+    if not df.empty:
+        df['expiration_date'] = pd.to_datetime(df['expiration_date'])
+        for _, product in df.iterrows():
+            st.markdown(f"""
+                <div class="product-card">
+                    <h3>{product['name']}</h3>
+                    <p>Quantity: {product['quantity']}</p>
+                    <p>Expiration: {product['expiration_date'].strftime('%Y-%m-%d')}</p>
+                    <p>Minimum Stock: {product['minimum_stock']}</p>
+            """, unsafe_allow_html=True)
+            
+            # Display the image if available
+            if "image_url" in product and product["image_url"]:
+                st.image(product["image_url"], width=150)
+            
+            st.markdown(f"""
+                <button onclick="updateQuantity({product['id']}, -1)">-</button>
+                <button onclick="updateQuantity({product['id']}, 1)">+</button>
+                <button onclick="if(confirm('Are you sure?')){{window.location.href='/delete/{product['id']}'}}">
+                    Delete
+                </button>
+                </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info("No products in inventory. Add some products to get started!")
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    main()
+
