@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cancelAddBtn = document.getElementById('cancelAdd');
     const inventoryList = document.getElementById('inventoryList');
     const reminderList = document.getElementById('reminderList');
+});
 
     // API endpoints
     const API_BASE_URL = 'http://localhost:5000/api';
@@ -22,14 +23,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Close modal when clicking outside
     window.addEventListener('click', (e) => {
-        if (e.target === addProductModal) {
-            addProductModal.style.display = 'none';
+        if (e.target.classList.contains('modal')) {
+            e.target.style.display = 'none';
             addProductForm.reset();
         }
     });
+    
 
     // Handle form submission
-    addProductForm.addEventListener('submit', async (e) => {
+    addProductForm.addEventListener ('submit', async (e) => {
         e.preventDefault();
 
         const productData = {
@@ -40,35 +42,43 @@ document.addEventListener('DOMContentLoaded', () => {
             minimum_stock: parseInt(document.getElementById('minimumStock').value)
         };
 
+        document.getElementById('submitProductBtn').disabled = true; // Disable button
+
         try {
             const response = await fetch(`${API_BASE_URL}/products`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(productData)
             });
-
-            if (response.ok) {
-                addProductModal.style.display = 'none';
-                addProductForm.reset();
-                loadInventory();
-                loadReminders();
-                updateDashboard();
-            } else {
+        
+            if (!response.ok) {
                 throw new Error('Failed to add product');
             }
+        
+            addProductModal.style.display = 'none';
+            addProductForm.reset();
+            loadInventory();
+            loadReminders();
+            updateDashboard();
         } catch (error) {
             console.error('Error:', error);
             showAlert('Failed to add product');
+        } finally {
+            document.getElementById('submitProductBtn').disabled = false; // Re-enable button
         }
-    });
+        
+        <button id="submitProductBtn" class="btn-primary" type="submit">Add Product</button>
+
 
     // Load inventory
     async function loadInventory() {
         try {
             const response = await fetch(`${API_BASE_URL}/products`);
-            const products = await response.json();
+if (!response.ok) {
+    throw new Error(`Failed to fetch inventory. Status: ${response.status}`);
+}
+const products = await response.json();
+
             
             inventoryList.innerHTML = products.map(product => `
                 <div class="product-card">
@@ -92,8 +102,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load reminders
     async function loadReminders() {
         try {
-            const response = await fetch(`${API_BASE_URL}/reminders`);
-            const reminders = await response.json();
+            const response = await fetch(`${API_BASE_URL}/products`);
+if (!response.ok) {
+    throw new Error(`Failed to fetch inventory. Status: ${response.status}`);
+}
+const products = await response.json();
+
             
             reminderList.innerHTML = reminders.map(reminder => `
                 <div class="reminder-card">
@@ -111,8 +125,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Update dashboard
     async function updateDashboard() {
         try {
-            const response = await fetch(`${API_BASE_URL}/dashboard`);
-            const stats = await response.json();
+            const response = await fetch(`${API_BASE_URL}/products`);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch inventory. Status: ${response.status}`);
+            }
+            const products = await response.json();
+            
             
             document.getElementById('totalProducts').textContent = stats.total_products;
             document.getElementById('lowStock').textContent = stats.low_stock;
@@ -193,7 +211,7 @@ function sendEmailAlert() {
             "Content-Type": "application/json",
         },
         body: JSON.stringify({
-            email: "user@example.com",  // Replace with actual recipient email
+            email: document.getElementById('userEmail').value || "default@example.com",
             subject: "Stock Low Alert",
             message: "Your inventory is running low. Please restock soon!",
         }),
@@ -211,4 +229,6 @@ function testApiCall() {
 }
 
 // Call function when page loads
-window.onload = testApiCall;
+document.addEventListener('DOMContentLoaded', () => {
+    testApiCall();
+});
