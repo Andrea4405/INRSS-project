@@ -93,6 +93,11 @@ h1 {
     transition: background-color 0.3s;
 }
 
+.btn-secondary:hover {
+    background-color: #7f8c8d;
+}
+
+
 .inventory-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -117,12 +122,10 @@ h1 {
 }
 
 .modal-content {
-    background-color: var(--card-background);
-    padding: var(--spacing);
-    border-radius: var(--border-radius);
-    width: 90%;
-    max-width: 500px;
-    margin: 50px auto;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
 }
 
 .form-group {
@@ -180,5 +183,10 @@ h1 {
     
     .inventory-list {
         grid-template-columns: 1fr;
+    }
+
+    .form-actions {
+        flex-direction: column;
+        align-items: stretch;
     }
 }
